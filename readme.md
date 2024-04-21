@@ -13,7 +13,7 @@ Envoy过滤器是Istio服务网格的一部分，支持自定义逻辑处理非�
 
 ## 方案设计
 ### 设计概述
-![图](overview.png)
+![图](doc/overview.png)
 **核心流程**：当请求达到网关的时候，解析请求中的**应用类别**、**Token**, 向对应的身份提供方(IDP)发起验证请求，如果请求通过，则继续透传到功能服务中。
 
 **质量设计**：（1）可拓展性，代码实现的时候考虑不同的应用类别的选择以及增补。（2）高性能：考虑Token本身的过期和更新情况，在本地进行Token缓存。
@@ -30,104 +30,48 @@ Envoy过滤器是Istio服务网格的一部分，支持自定义逻辑处理非�
 	- 添加EnvoyFilter，配置External Authorization服务
 	- 定义ExtAuthz作为endpoint应用使用
 	- 配置AuthorizationPolicies，根据外部授权结果来决定请求处理方式。
+
 ### **DEMO验证**
-1. 使用keycloak模拟IDP服务，或者是Mock数据
-2. 申请client ID和Secret
-3. 模拟用户OAuth2.0登录过程，获取Token
-4. 带Token请求应用。
 
-### 代码框架
-
-1. 开发外部认证服务
-
-```go
-
-package main
-
-import (
-	"encoding/json"
-	"net/http"
-)
-
-func checkTokenHandler(w http.ResponseWriter, r *http.Request) {
-	var data struct {
-		Token string `json:"token"`
-	}
-	json.NewDecoder(r.Body).Decode(&data)
-	token := data.Token
-
-	// Token validation logic goes here
-
-	response := map[string]interface{}{
-		"valid":     true,
-		"user_info": struct{}{},
-	}
-	json.NewEncoder(w).Encode(response)
-}
-
-func main() {
-	http.HandleFunc("/check", checkTokenHandler)
-	http.ListenAndServe(":9090", nil)
-}
-
+1. 通过 docker-compose 拉起容器和服务
+```bash
+docker-compose up --build
+```
+默认是Http请求，如果是grpc请求，改用
+	
+```bash
+1. 调整Dockerfile.envoy 第六行
+COPY envoy-grpc.yaml /etc/envoy/envoy.yaml
 ```
 
-``` go
-package main
+2. 发送请求验证
 
-import (
-	"net/http"
-)
+目前的验证逻辑很简单，Authorization字段值长度超过5即可
 
-func validateTokenWithIDP(token string) bool {
-	idpURL := "https://idp.example.com/validate"
-	req, _ := http.NewRequest("GET", idpURL, nil)
-	req.Header.Add("Authorization", "Bearer "+token)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-
-	// Check HTTP response status code for success
-	return resp.StatusCode == 200
-}
+请求失败示例(没带有头部字段)
+```bash
+curl -v http://localhost:9999
+```
+请求成功示例
+```bash
+curl -v -H "Authorization:bbbbbbb" http://localhost:9999
 ```
 
-2. 修改Istio配置并集成
 
-``` yaml
-apiVersion: networking.istio.io/v1alpha3
-kind: EnvoyFilter
-metadata:
-  name: ext-authz-filter
-  namespace: istio-system
-spec:
-  workloadSelector:
-    labels:
-      app: my-app
-  configPatches:
-    - applyTo: HTTP_FILTER
-      match:
-        context: GATEWAY
-      patch:
-        operation: INSERT_FIRST
-        value:
-          name: envoy.filters.http.ext_authz
-          typed_config:
-            "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
-            http_service:
-              server_uri:
-                uri: http://ext-authz-service:9090
-                cluster: ext-authz-service
-                timeout: 1s
-              path_prefix: "/check"
-```
+## 验证进展
+
+已完成进展，相关工作见[日志](./doc/record.md)
+-[X] 使用Enovy验证External Authorization功能，覆盖gRPC和http两种方式
+-[X] 基于Docker Compose构建+测试脚本
+
+待完成：
+-[ ] 灵活切换两种方式，gRPC的拒绝返回结果再确认一下。
+-[ ] 引入Redis缓存
+-[ ] 引入真实IDP交互
 
 ## 参考文章
 1. Istio OIDC Authentication: https://venafi.com/blog/istio-oidc/
 2. OIDC Multi-provider Support in Istio: https://venafi.com/blog/oidc-multi-provider-support-in-istio/
 3. External Authorization: https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/ext_authz_filter
 4. API Authentication: Configure Istio IngressGateway, OAuth2-Proxy and Keycloak: https://medium.com/@senthilrch/api-authentication-using-istio-ingress-gateway-oauth2-proxy-and-keycloak-part-2-of-2-dbb3fb9cd0d0
+5. Better Istio Externel Authorization:https://istio.io/latest/zh/blog/2021/better-external-authz/

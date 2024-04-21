@@ -1,5 +1,5 @@
 # 使用Go官方镜像作为构建环境
-FROM golang:1.16 AS builder
+FROM golang:1.20 AS builder
 WORKDIR /app
 COPY . .
 

@@ -2,14 +2,38 @@ version: '3.8'
 services:
   auth-server:
     build:
+      context: ./authsvr
       dockerfile: Dockerfile
-    ports:
-      - "4000:4000"
+    networks:
+      - envoymesh
+
+  auth-server-grpc:
+    build:
+      context: ./authsvr-grpc
+      dockerfile: Dockerfile
+    networks:
+      - envoymesh
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    networks:
+      - envoymesh
 
   envoy:
     build:
       dockerfile: Dockerfile.envoy
+    environment:
+    - ENVOY_CONFIG
     ports:
-      - "10000:10000"
+      - "9901:9901"
+      - "9999:9999"
     depends_on:
       - auth-server
+      - backend
+    networks:
+      - envoymesh
+
+networks:
+  envoymesh: {}
