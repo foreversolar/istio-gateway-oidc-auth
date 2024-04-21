@@ -61,13 +61,15 @@ curl -v -H "Authorization:bbbbbbb" http://localhost:9999
 ## 验证进展
 
 已完成进展，相关工作见[日志](./doc/record.md)
--[X] 使用Enovy验证External Authorization功能，覆盖gRPC和http两种方式
--[X] 基于Docker Compose构建+测试脚本
+- [x] 使用Enovy验证External Authorization功能，覆盖gRPC和http两种方式
+
+- [x] 基于Docker Compose构建+测试脚本
+
 
 待完成：
--[ ] 灵活切换两种方式，gRPC的拒绝返回结果再确认一下。
--[ ] 引入Redis缓存
--[ ] 引入真实IDP交互
+- [ ] 灵活切换两种方式，gRPC的拒绝返回结果再确认一下。
+- [ ] 引入Redis缓存
+- [ ] 引入真实IDP交互
 
 ## 参考文章
 1. Istio OIDC Authentication: https://venafi.com/blog/istio-oidc/
