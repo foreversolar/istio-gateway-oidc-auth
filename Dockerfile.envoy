@@ -1,0 +1,8 @@
+# 使用Envoy官方镜像
+FROM envoyproxy/envoy:v1.18.3
+# 将本地的配置文件复制到容器中
+COPY envoy.yaml /etc/envoy/envoy.yaml
+# 验证配置文件
+CMD ["envoy","--config-path","/etc/envoy/envoy.yaml","--mode","validate"]
+# 启动服务
+CMD ["envoy", "-c", "/etc/envoy/envoy.yaml", "--service-cluster", "auth-cluster"]
